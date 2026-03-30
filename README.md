@@ -4,53 +4,55 @@
 
 ---
 
-## 📌 Overview
-
-**ToxAI** is a high-performance drug discovery platform that predicts molecular toxicity across 12 biochemical targets (Tox21 benchmark). It provides multi-level interpretability, combining classical ML (XGBoost), Deep Learning (GNN), and Large Language Models (Gemini) to explain *why* a molecule might be toxic and how to fix it.
-
-### **✨ Key Features**
-- **Dual-Model Predictions**: Head-to-head comparison between **XGBoost** (descriptors) and **GNN** (graph-level anatomy).
-- **🧠 AI Scientist (Gemini)**: Automated toxicological reviews and redesign suggestions using LLM reasoning.
-- **Micro-Analysis**: Atom-level SHAP heatmaps highlighting specific toxicophores.
-- **Lead Discovery**: Integrated explorer for the **ZINC 250k** lead-like dataset.
-- **Rule-Based Guidance**: Built-in chemistry alerts and bioisostere optimization suggestions.
+## 📌 Project Overview
+**ToxAI** is a high-performance drug discovery and analysis platform designed to predict molecular toxicity across 12 critical biochemical targets (Tox21 benchmark). By merging **Gradient Boosting (XGBoost)**, **Graph Neural Networks (GNN)**, and **Generative AI (Gemini)**, ToxAI doesn't just predict risk—it explains the biochemical "why" behind it and suggests structural redesigns for medicinal chemists.
 
 ---
 
-## 🗂️ Project Structure
-
-```
-drug_toxicity_predictor/
-├── data/              # Tox21 and ZINC benchmark datasets
-├── models/            # XGBoost (.pkl) and GNN (.pt) assets
-├── interface/
-│   └── app.py         # 8-tab Streamlit Dashboard
-├── src/
-│   ├── ai_advisor.py  # Gemini LLM Bridge
-│   ├── gnn_model.py   # PyTorch Geometric GNN (GATConv)
-│   ├── atom_shap.py   # Visual interpretability engine
-│   ├── toxicophores.py # Rule-based safety engine
-│   ├── train.py       # ML training pipeline
-│   └── feature_engineering.py
-├── run_app.sh         # Intelligent launcher
-├── .env.example       # API configuration template
-└── requirements.txt
-```
+## ✨ Features
+- **Dual-Model Predictions**: Head-to-head comparison between **Classical ML** (XGBoost) and **Geometric Deep Learning** (GATConv Graph Models).
+- **🧠 AI Scientist Advisor**: Powered by **Gemini 1.5 Flash**, providing expert toxicological reviews and structural redesign (bioisostere) suggestions.
+- **Micro-Interpretation**: Atom-level SHAP heatmaps that highlight specific molecular regions driving toxicity scores.
+- **Lead Discovery**: Interactive explorer for the **ZINC 250k** lead-like dataset (ZINC250k subset).
+- **Security & Efficiency**: Automated `.env` configuration and an intelligent launcher that handles RDKit and XGBoost dependencies on both Apple Silicon and Intel.
 
 ---
 
-## ⚙️ Setup & Launch
+## 🛠️ Tech Stack & Tools
+| Category | Technologies |
+|---|---|
+| **Programming** | Python 3.9+ |
+| **Classical ML** | XGBoost, Scikit-learn, joblib |
+| **Deep Learning** | PyTorch, PyTorch Geometric (GATConv) |
+| **Cheminformatics** | RDKit (Molecular Descriptors, SMARTS matching) |
+| **Interpretability** | SHAP (Tree & Kernel), Matplotlib, Seaborn |
+| **Generative AI** | Google Generative AI (Gemini SDK) |
+| **Dashboard** | Streamlit, Plotly, CSS-customized components |
 
-### 1. Requirements
-Ensure you have **Python 3.9+** and a working C-compiler (for RDKit/XGBoost).
+---
 
-### 2. Environmental Keys
-To enable the **AI Scientist**, add your Gemini API key:
-1. Copy `.env.example` to `.env`.
-2. Insert your key: `GEMINI_API_KEY=your_key_here`.
+## 🚀 Installation & Setup
 
-### 3. Quick Launch
-The project includes an intelligent launcher that handles dependencies for Apple Silicon and Intel Macs:
+### 1. Clone the Repository
+```bash
+git clone https://github.com/yash-clouded/drug_toxicity_predictor.git
+cd drug_toxicity_predictor
+```
+
+### 2. Environment Configuration
+ToxAI uses an AI Scientist feature that requires a Gemini API Key.
+1. Create a `.env` file in the root directory:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open `.env` and paste your key:
+   ```bash
+   GEMINI_API_KEY=your_actual_key_here
+   ```
+   *Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).*
+
+### 3. Launching the App
+The project includes an intelligent shell script that automatically creates a virtual environment, installs optimized dependencies (handling RDKit and libomp for Macs), and launches the Streamlit interface:
 ```bash
 chmod +x run_app.sh
 ./run_app.sh
@@ -58,25 +60,35 @@ chmod +x run_app.sh
 
 ---
 
-## 📊 Technical Stack
+## 📐 Technical Workflow
 
-| Category | Technologies |
-|---|---|
-| **Core ML** | XGBoost, Scikit-learn, Optuna |
-| **Deep Learning** | PyTorch, PyTorch Geometric (GATConv) |
-| **Cheminformatics** | RDKit |
-| **Interpretability** | SHAP (Tree & Kernel), Matplotlib |
-| **AI Advisor** | Google Generative AI (Gemini 1.5 Flash) |
-| **Interface** | Streamlit, Plotly, Seaborn |
+```mermaid
+graph TD
+    A[SMILES / ZINC Input] --> B{Feature Engineering}
+    B --> C[Descriptor Matrix]
+    B --> D[Molecular Graph]
+    
+    C --> E[XGBoost Predictor]
+    D --> F[GNN Classifier]
+    
+    E --> G[Toxicity Probabilities]
+    F --> G
+    
+    G --> H[SHAP Analysis]
+    H --> I[Atom Heatmaps]
+    
+    I & G --> J[🧠 AI Scientist]
+    J --> K[Scientific Explanation & Redesign]
+```
 
----
-
-## 🔍 Interpretability Workflow
-
-1. **Input**: Enter a SMILES string or select from ZINC.
-2. **Predict**: Review probabilities across 12 Tox21 assays.
-3. **Heatmap**: Visualize which specific atoms drive the risk score.
-4. **AI Review**: Click **🧪 Ask AI Scientist** to receive a structured scientific report and redesign suggestions.
+### **1. Input & Processing**
+Molecules are accepted as SMILES strings. RDKit is used to compute normalized molecular descriptors and topological fingerprints.
+### **2. Prediction**
+The molecule is passed through 12 target-specific XGBoost models and Graph Attention Networks (GATConv).
+### **3. Interpretability**
+SHAP (Shapley Additive Explanations) is used to attribute prediction scores to specific molecular features and atoms.
+### **4. AI Synthesis**
+The Gemini API ingests the model scores, SHAP drivers, and structural alerts to generate a professional scientific review.
 
 ---
 
