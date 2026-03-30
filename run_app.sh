@@ -23,8 +23,10 @@ if [ ! -d "venv" ]; then
     pip install -r requirements.txt
     # Downgrade numpy for RDKit compatibility
     pip install "numpy<2"
-else
     source venv/bin/activate
+    # Always ensure requirements are up-to-date
+    echo "Verifying dependencies..."
+    pip install -q -r requirements.txt
 fi
 
 # Check for trained models
@@ -34,4 +36,4 @@ if [ ! -d "models" ] || [ -z "$(ls -A models)" ]; then
 fi
 
 echo "Launching Streamlit app..."
-streamlit run interface/app.py
+./venv/bin/streamlit run interface/app.py

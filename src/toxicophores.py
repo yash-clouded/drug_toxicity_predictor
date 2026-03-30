@@ -257,7 +257,14 @@ def render_with_highlights(smiles: str, atom_indices: list[int], color=(0.9, 0.2
     if mol is None:
         return None
 
-    highlight_atoms = list(set(atom_indices))
+    # Handle if we got a list of alerts instead of just indices
+    if atom_indices and isinstance(atom_indices[0], dict):
+        flattened = []
+        for alert in atom_indices:
+            flattened.extend(alert.get("matched_atoms", []))
+        atom_indices = flattened
+
+    highlight_atoms = list(set(atom_indices)) if atom_indices else []
     highlight_bonds = []
     for bond in mol.GetBonds():
         ai, aj = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
@@ -319,53 +326,31 @@ def screen_summary(smiles: str) -> dict:
     }
 
 
-def suggest_optimizations(smiles: str) -> list[str]:
+def suggest_optimizations(smiles: str) -> list[dict]:
     """
     Rule-based drug optimization suggestions based on detected toxicophores.
-    Returns a list of plain-English suggestions with specific bioisostere pairs.
+    Returns a list of dicts: {'original': str, 'suggestion': str, 'reason': str}
     """
     alerts = match_alerts(smiles)
     suggestions = []
 
     for alert in alerts:
         aid = alert["id"]
+        aname = alert["name"]
+        
         if aid == "nitro_aromatic":
-            suggestions.append("🔄 **Nitro group (–NO₂)**: Replace with bioisosteres like **–CF₃** (trifluoromethyl), **–CN** (cyano), or **–SO₂CH₃** (methylsulfone). These maintain electron-withdrawing properties without the genotoxicity.")
+            suggestions.append({"original": "Nitro group (–NO₂)", "suggestion": "–CF₃ or –CN", "reason": "Nitro groups are often genotoxic. Trifluoromethyl or cyano groups maintain electron-withdrawing status without DNA risk."})
         elif aid == "aromatic_amine":
-            suggestions.append("🔄 **Aromatic amine (–NH₂)**: High genotoxicity risk. Consider **N-acylation** (amide formation), **N-sulfonylation**, or replacing with **–OH**, **–F**, or **–OCH₃** to block reactive nitrenium ion formation.")
+            suggestions.append({"original": "Aromatic amine (–NH₂)", "suggestion": "–OH or –F", "reason": "Aromatic amines form reactive nitrenium ions. Hydroxyl or fluorine groups block this pathway."})
         elif aid == "michael_acceptor":
-            suggestions.append("🔄 **Michael acceptor**: High reactivity towards thiols. Try **saturating the double bond**, adding a **β-methyl group** to provide steric hindrance, or replacing with a **saturated heterocycle**.")
+            suggestions.append({"original": "Michael acceptor", "suggestion": "Saturated double bond", "reason": "Reduces covalent reactivity with cellular glutathione and protein thiols."})
         elif aid == "quinone":
-            suggestions.append("🔄 **Quinone**: High redox risk. Replace with a **hydroquinone** (if reversible), or change the aromatic scaffold to a **non-quinoid system** like a pyridine or pyrimidine.")
+            suggestions.append({"original": "Quinone", "suggestion": "Non-quinoid heterocycle", "reason": "Avoids redox cycling and ROS generation that causes mitochondrial damage."})
         elif aid == "epoxide":
-            suggestions.append("🔄 **Epoxide**: Extremely reactive. Replace with a **fluoro-alkyl** group or a **1,2-diol** if the polarity is acceptable. Alternatively, use a **oxetane** or **cyclopropane** as a less reactive structural mimic.")
-        elif aid == "alkyl_halide":
-            suggestions.append("🔄 **Activated alkyl halide**: Covalent hazard. Replace with **–CH₂OH**, **–CH₂NH₂**, or an **ether** linkage. If a halogen is needed for binding, try a **vinyl fluoride** or **aromatic fluoride** which are much less reactive.")
-        elif aid == "aldehyde":
-            suggestions.append("🔄 **Aldehyde (–CHO)**: Try bioisosteres like **tetrazole**, **hydroxamic acid**, or **primary sulfonamide**. If needed for binding, consider a **ketone** or a **nitrile** as less reactive alternatives.")
-        elif aid == "acyl_halide":
-            suggestions.append("🔄 **Acyl halide**: Too reactive for drugs. Use a stable **amide**, **ester**, or **carbamate** as a prodrug or stable equivalent.")
-        elif aid == "isocyanate":
-            suggestions.append("🔄 **Isocyanate**: Replace with a stable **urea** or **carbamate** derivative.")
-        elif aid == "PAH":
-            suggestions.append("🔄 **PAH (Polycyclic Aromatic)**: Reduce the number of fused rings (target **≤ 3**). Introduce **nitrogen or oxygen atoms** into the rings to reduce planarity and intercalation potential.")
-        elif aid == "nitroso":
-            suggestions.append("🔄 **Nitroso**: Very high cancer risk. Replace with a **hydroxylamine** or convert to a stable **amide** or **sulfonamide**.")
-        elif aid == "poly_halogen":
-            suggestions.append("🔄 **Poly-halogenated aromatic**: Bioaccumulation hazard. Replace **Cl/Br** with **F** (fluorine). Fluorine is more metabolically stable and less likely to bioaccumulate.")
-        elif aid == "estrogen_mimic":
-            suggestions.append("🔄 **Phenol (potential hormone mimic)**: Often binds to ER. Try **etherifying** the –OH to **–OCH₃** or **–OCHF₂** (difluoromethoxy) to block hydrogen bonding to the receptor.")
-        elif aid == "hydrazine":
-            suggestions.append("🔄 **Hydrazine (–NH–NH₂)**: Liver toxicity hazard. Replace with an **amide**, **urea**, or a **saturated N-heterocycle** like piperidine.")
-        elif aid == "sulfonyl_halide":
-            suggestions.append("🔄 **Sulfonyl halide**: Covalent hazard. Replace with a **sulfonamide (–SO₂NH₂)** or a **sulfone (–SO₂R)**.")
-        elif aid == "thioester":
-            suggestions.append("🔄 **Thioester**: Metabolic instability. Replace with a standard **ester** or an **amide** (which is more enzymatically stable).")
-        elif aid == "azide":
-            suggestions.append("🔄 **Azide (–N₃)**: Explosive/Reactive hazard. Replace with a **triazole** (common bioisostere via 'click' chemistry) or an **amide**.")
-
-    if not suggestions:
-        suggestions.append("✅ No high-priority structural modifications suggested. The molecule appears relatively clean from a toxicophore perspective.")
+            suggestions.append({"original": "Epoxide", "suggestion": "oxetane or cyclopropane", "reason": "Replaces the highly electrophilic epoxide ring with a stable, less reactive structural mimic."})
+        # ... fallback for others
+        else:
+            suggestions.append({"original": aname, "suggestion": "Bioisosteric replacement", "reason": alert["mechanism"]})
 
     return suggestions
 

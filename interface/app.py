@@ -171,6 +171,10 @@ def main():
     if "last_smiles" not in st.session_state: st.session_state["last_smiles"] = ""
     if "desc" not in st.session_state: st.session_state["desc"] = {}
     if "target_idx" not in st.session_state: st.session_state["target_idx"] = 0
+    if "ai_notes" not in st.session_state: st.session_state["ai_notes"] = None
+    
+    # Default target
+    bt = TOX21_TARGETS[0]
 
     st.title("🧪 ToxAI: Advanced Drug Toxicity Predictor")
     st.caption("XGBoost Model · Graph Neural Network · Chemistry Alerts · Drug Optimization")
@@ -201,6 +205,7 @@ def main():
         def _set_smiles(new_smi):
             st.session_state["global_smiles"] = new_smi
             st.session_state["results"] = None
+            st.session_state["ai_notes"] = None
             st.session_state["target_idx"] = 0
 
         def _load_example():
@@ -218,41 +223,77 @@ def main():
             else: st.error("Invalid SMILES")
         st.divider()
 
-        if smiles and analyze:
+        if st.session_state.get("results"):
             st.subheader("📝 Export Results")
-            sum_res = screen_summary(smiles)
-            report_lines = [f"# Toxicity Audit: {smiles}", f"**Max Chemical Risk:** {sum_res['max_risk']}", f"**Alerts Found:** {len(sum_res['alerts'])}", "\n## Structural Alerts"]
-            for a in sum_res['alerts']: report_lines.append(f"- {a['name']} ({a['risk']}): {a['mechanism']}")
+            smiles_val = st.session_state.get("last_smiles") or smiles
+            sum_res = screen_summary(smiles_val)
             
-            if "ai_notes" in st.session_state and st.session_state["ai_notes"]:
-                report_lines.append("\n## Gemini AI: Expert Toxicological Review")
-                report_lines.append(st.session_state["ai_notes"])
+            # --- START COMPREHENSIVE REPORT ---
+            report_lines = [
+                f"# ToxAI: Detailed Toxicity Audit",
+                f"**Molecule (SMILES):** `{smiles_val}`",
+                f"**Maximum Risk Flag:** {sum_res['max_risk']}",
+                "\n## 🧬 Molecular Descriptors",
+                "| Property | Value |",
+                "|---|---|",
+            ]
+            desc = st.session_state.get("desc", {})
+            for k, v in desc.items():
+                report_lines.append(f"| {k} | {v:.4f} |")
 
-            st.download_button("⬇️ Download Detailed Report", "\n".join(report_lines), f"ToxAI_Report_{smiles[:10]}.md", "text/markdown", use_container_width=True)
+            report_lines.append("\n## 🔬 Binary Assay Predictions (XGBoost)")
+            report_lines.append("| Target | Probability | Risk Level |")
+            report_lines.append("|---|---|---|")
+            res_list = st.session_state.get("results") or []
+            for r in res_list:
+                report_lines.append(f"| {r['Target']} | {r['Probability']:.1%} | {r['Risk']} |")
+
+            report_lines.append("\n## ⚠️ Structural Alerts (Toxicophores)")
+            if sum_res['alerts']:
+                for a in sum_res['alerts']: 
+                    report_lines.append(f"### {a['name']} ({a['risk']})")
+                    report_lines.append(f"- **Mechanism**: {a['mechanism']}")
+            else:
+                report_lines.append("No common toxicophores detected.")
+
+            if st.session_state.get("ai_notes"):
+                report_lines.append("\n## 🧠 Gemini AI: Expert Scientific Review")
+                report_lines.append(st.session_state["ai_notes"])
+            # --- END COMPREHENSIVE REPORT ---
+
+            btn_label = "⬇️ Download FULL AI Report" if st.session_state.get("ai_notes") else "⬇️ Download Detailed Audit"
+            st.download_button(btn_label, "\n".join(report_lines), f"ToxAI_Audit_{smiles_val[:8]}.md", "text/markdown", key="dl_btn", use_container_width=True)
 
     # TAB 1: PREDICT
     with tabs[0]:
         st.subheader("Toxicity Prediction Across All Targets")
-        if smiles.strip() != st.session_state["last_smiles"].strip():
-            st.session_state["results"] = None
-            st.session_state["target_idx"] = 0
 
         if not smiles:
             st.info("Enter a SMILES in the sidebar, then click **🔬 Analyze Molecule**.")
+            st.session_state["results"] = None
         else:
+            # Handle analysis trigger
             if analyze:
                 with st.spinner("Running XGBoost models..."):
                     rows = []
                     for t in TOX21_TARGETS:
                         p = get_prediction(smiles, t)
                         if p is not None:
-                            rows.append({"Target": t, "Probability": float(p), "Risk": "High" if p > 0.7 else ("Medium" if p > 0.4 else "Low")})
-                    st.session_state["results"] = rows
-                    st.session_state["desc"] = smiles_to_descriptors(smiles) or {}
-                    st.session_state["last_smiles"] = smiles
-                    st.session_state["target_idx"] = 0
-
-            if st.session_state["results"]:
+                            rows.append({
+                                "Target": t, 
+                                "Probability": float(p), 
+                                "Risk": "High" if p > 0.7 else ("Medium" if p > 0.4 else "Low")
+                            })
+                    if rows:
+                        st.session_state["results"] = rows
+                        st.session_state["desc"] = smiles_to_descriptors(smiles) or {}
+                        st.session_state["last_smiles"] = smiles
+                        st.session_state["target_idx"] = 0
+                    else:
+                        st.error("No predictions generated. Check your SMILES or model paths.")
+            
+            # Show results if they exist for the current SMILES
+            if st.session_state.get("results") and smiles.strip() == st.session_state.get("last_smiles", "").strip():
                 df_res = pd.DataFrame(st.session_state["results"])
                 desc = st.session_state["desc"]
                 n_toxic = int(df_res["Risk"].eq("High").sum())
@@ -307,89 +348,93 @@ def main():
                             st.session_state["ai_notes"] = ai_notes
                             st.rerun()
 
-                if "ai_notes" in st.session_state and st.session_state["ai_notes"]:
-                    st.markdown(f'<div style="background:#f0f7ff; border-left:5px solid #0056b3; padding:15px; border-radius:10px;">{st.session_state["ai_notes"]}</div>', unsafe_allow_html=True)
-                    st.download_button("⬇️ Save Detailed Results", st.session_state["ai_notes"], f"AI_Review_{smiles[:8]}.md", use_container_width=True)
+                if st.session_state.get("ai_notes"):
+                    st.markdown(f'<div style="background:#f0f7ff; border-left:5px solid #0056b3; padding:15px; border-radius:10px; color: #111;">{st.session_state["ai_notes"]}</div>', unsafe_allow_html=True)
                 else:
-                    st.warning("AI Advisor module (`src/ai_advisor.py`) not found or `google-generativeai` missing.")
-            else:
-                st.info("Click **🔬 Analyze Molecule** to run predictions.")
+                    st.info("Click the button above to generate a detailed scientific report.")
 
-    # TAB 2: CHEMISTRY ALERTS
+    # TAB 2: ALERTS
     with tabs[1]:
-        st.subheader("⚗️ Structural Toxicity Alerts")
-        if smiles:
-            summary = screen_summary(smiles)
-            col_r, col_mol = st.columns([1, 1.2])
-            with col_r:
-                st.markdown(f"**Overall Risk:** {risk_badge(summary['max_risk'])}", unsafe_allow_html=True)
-                if not summary['alerts']: st.success("✅ No toxicophores detected.")
-                else:
-                    for a in summary['alerts']:
-                        st.markdown(f'<div class="risk-{a["risk"].lower()}"><b>{a["name"]}</b><br><div class="mechanism-text">{a["mechanism"]}</div></div>', unsafe_allow_html=True)
-            with col_mol:
-                all_atoms = summary["all_highlighted_atoms"]
-                if all_atoms: svg_block(render_with_highlights(smiles, all_atoms), "Red = toxicophore atoms")
-                else: svg_block(render_plain(smiles, 420, 340), "Clean structure")
+        st.subheader("⚠️ Structural Alert Mapping")
+        res = match_alerts(smiles)
+        if res:
+            st.warning(f"Found {len(res)} structural alerts.")
+            cols = st.columns(2)
+            with cols[0]:
+                svg = render_with_highlights(smiles, res)
+                if svg: svg_block(svg, "Highlighted Reactive Sites")
+            with cols[1]:
+                for a in res:
+                    st.markdown(f"**{a['name']}** ({a['risk']})")
+                    st.caption(f"Mechanism: {a['mechanism']}")
+                    st.divider()
+        else:
+            st.success("No common toxicophore alerts matched.")
 
-    # TAB 3: ATOM HEATMAP
+    # TAB 3: HEATMAP
     with tabs[2]:
-        st.subheader("🌡️ Atom-Level SHAP Heatmap")
-        if smiles:
-            target_h = st.selectbox("Select target", TOX21_TARGETS, key="hmap_t")
-            if st.button("Generate Heatmap"):
-                model, imputer, meta = load_assets(target_h)
-                if model:
-                    with st.spinner("Computing..."):
-                        svg = quick_heatmap_from_model(smiles, model, imputer, meta, compute_all_features)
-                    if svg: svg_block(svg, f"SHAP Heatmap - {target_h}")
-                    else: st.warning("Heatmap error.")
-                else: st.warning("Model not found.")
+        st.subheader("🔥 Atom-Level Toxicity Heatmap")
+        res_list = st.session_state.get("results")
+        if res_list:
+            df_res = pd.DataFrame(res_list)
+            # Add a dropdown to select which target to visualize
+            bt_name = st.selectbox("Select assay target for heatmap", df_res["Target"], key="heatmap_target_sel")
+            
+            st.write(f"Analyzing contribution of each atom to `{bt_name}` toxicity.")
+            model, imputer, meta = load_assets(bt_name)
+            if model and imputer and meta:
+                svg_h = quick_heatmap_from_model(
+                    smiles, model, imputer, meta, compute_all_features,
+                    fp_bits=meta.get("fp_bits", 2048)
+                )
+                if svg_h: svg_block(svg_h, f"Heatmap for {bt_name}")
+                else: st.error("Failed to generate heatmap.")
+            else: st.error("Model assets not available for heatmap.")
+        else:
+            st.info("Run an analysis first to explore atom-level heatmaps.")
 
     # TAB 4: COMPARE
     with tabs[3]:
-        st.subheader("⚖️ Side-by-Side Comparison")
-        c_a, c_b = st.columns(2)
-        with c_a:
-            smi_a = st.text_input("SMILES A", value="CC(=O)Oc1ccccc1C(=O)O", key="c_a")
-            if smi_a: svg_block(render_plain(smi_a, 320, 240))
-        with c_b:
-            smi_b = st.text_input("SMILES B", value="c1ccc2cc3ccc4cccc5ccc(c1)c2c3c45", key="c_b")
-            if smi_b: svg_block(render_plain(smi_b, 320, 240))
-        if st.button("⚖️ Compare Both") and smi_a and smi_b:
-            rows = []
-            for t in TOX21_TARGETS:
-                pa, pb = get_prediction(smi_a, t), get_prediction(smi_b, t)
-                if pa is not None: rows.append({"Target": t, "A": pa, "B": pb})
-            if rows:
-                df = pd.DataFrame(rows)
-                fig = go.Figure([go.Bar(name="A", x=df["Target"], y=df["A"]), go.Bar(name="B", x=df["Target"], y=df["B"])])
-                fig.update_layout(title="Multi-Target Comparison (Probability)")
-                st.plotly_chart(fig, use_container_width=True)
+        st.subheader("⚖️ Compare Two Molecules")
+        s2 = st.text_input("Enter second molecule SMILES", "O=C(O)c1ccccc1")
+        
+        # Check if we have results to get a meaningful target or just use default
+        comp_target = bt
+        res_list = st.session_state.get("results")
+        if res_list:
+            comp_target = res_list[st.session_state.get("target_idx", 0)]["Target"]
 
-    # TAB 5: DRUG OPTIMIZATION
+        if st.button("📊 Compare"):
+            p1 = get_prediction(smiles, comp_target)
+            p2 = get_prediction(s2, comp_target)
+            
+            st.write(f"Comparing target: **{comp_target}**")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"**Molecule A** ({p1:.1%})")
+                svg1 = render_plain(smiles, 300, 250)
+                if svg1: svg_block(svg1)
+            with c2:
+                st.markdown(f"**Molecule B** ({p2:.1%})")
+                svg2 = render_plain(s2, 300, 250)
+                if svg2: svg_block(svg2)
+
+    # TAB 5: OPTIMIZATION
     with tabs[4]:
-        st.subheader("💊 Structural Optimization Suggestions")
-        if smiles:
-            st.info("Generating safety-focused modifications based on detected toxicophores...")
-            opts = suggest_optimizations(smiles)
-            if not opts or "✅" in opts[0]:
-                st.success("✅ No structural optimizations suggested (low toxicity risk).")
-            else:
-                for opt_str in opts:
-                    # opts[0] is just a string in the current src/toxicophores.py
-                    st.markdown(opt_str)
-                    
-                st.divider()
-                st.caption("Tip: Use these suggestions to redesign your molecule for lower toxicity risk while maintaining biological activity.")
+        st.subheader("💊 Structural Redesign Suggestions")
+        opts = suggest_optimizations(smiles)
+        if opts:
+            for o in opts:
+                st.info(f"**{o['original']}** ⮕ **{o['suggestion']}**")
+                st.caption(o['reason'])
         else:
-            st.info("Analyze a molecule first to see optimization paths.")
+            st.success("No specific optimization rules triggered.")
 
-    # TAB 6: GNN VS XGBOOST
+    # TAB 6: GNN COMPARISON
     with tabs[5]:
-        st.subheader("🧠 GNN vs XGBoost Comparison")
+        st.subheader("🧠 GNN vs XGBoost (Head-to-Head)")
         if PYG_AVAILABLE:
-            gnn_user_smi = st.text_input("SMILES to compare", value=smiles or "CC(=O)Oc1ccccc1C(=O)O", key="gnn_comp_s")
+            gnn_user_smi = smiles or EXAMPLE_SMILES["Aspirin (safe)"]
             if st.button("⚡ Run Comparison"):
                 with st.spinner("Computing..."):
                     rows = []
