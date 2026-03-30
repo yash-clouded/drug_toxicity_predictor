@@ -10,10 +10,12 @@
 ---
 
 ## ✨ Features
-- **Dual-Model Predictions**: Head-to-head comparison between **Classical ML** (XGBoost) and **Geometric Deep Learning** (GATConv Graph Models).
-- **🧠 AI Scientist Advisor**: Powered by **Gemini 1.5 Flash**, providing expert toxicological reviews and structural redesign (bioisostere) suggestions.
-- **Micro-Interpretation**: Atom-level SHAP heatmaps that highlight specific molecular regions driving toxicity scores.
-- **Lead Discovery**: Interactive explorer for the **ZINC 250k** lead-like dataset (ZINC250k subset).
+### 🌟 Key Modern Features
+- **🧠 Gemini AI Scientist**: Integrates `gemini-1.5-flash` to provide expert biochemical explanations, structural alert rationalization, and actionable drug redesign strategies.
+- **📄 Detailed Scientific Reports**: One-click "Toxicity Audit" downloads that bundle molecular descriptors, multi-target predictions, structural alerts, and AI notes into a structured Markdown file.
+- **🔥 Atom-Level Interpretability**: Dynamic SHAP heatmaps that highlight the specific atoms driving toxicity for any selected assay target.
+- **⚖️ Molecular Comparison**: Side-by-side visual and statistical comparison of two SMILES strings across all Tox21 pathways.
+- **💊 Structural Optimization**: Rule-based redesign suggestions to mitigate toxicity while maintaining drug-like properties.
 - **Security & Efficiency**: Automated `.env` configuration and an intelligent launcher that handles RDKit and XGBoost dependencies on both Apple Silicon and Intel.
 
 ---
@@ -26,7 +28,7 @@
 | **Deep Learning** | PyTorch, PyTorch Geometric (GATConv) |
 | **Cheminformatics** | RDKit (Molecular Descriptors, SMARTS matching) |
 | **Interpretability** | SHAP (Tree & Kernel), Matplotlib, Seaborn |
-| **Generative AI** | Google Generative AI (Gemini SDK) |
+| **Generative AI** | Google Generative AI (Gemini 1.5 Flash) |
 | **Dashboard** | Streamlit, Plotly, CSS-customized components |
 
 ---
