@@ -223,7 +223,12 @@ def main():
             sum_res = screen_summary(smiles)
             report_lines = [f"# Toxicity Audit: {smiles}", f"**Max Chemical Risk:** {sum_res['max_risk']}", f"**Alerts Found:** {len(sum_res['alerts'])}", "\n## Structural Alerts"]
             for a in sum_res['alerts']: report_lines.append(f"- {a['name']} ({a['risk']}): {a['mechanism']}")
-            st.download_button("⬇️ Download Toxicity Audit", "\n".join(report_lines), "report.md", "text/markdown", use_container_width=True)
+            
+            if "ai_notes" in st.session_state and st.session_state["ai_notes"]:
+                report_lines.append("\n## Gemini AI: Expert Toxicological Review")
+                report_lines.append(st.session_state["ai_notes"])
+
+            st.download_button("⬇️ Download Detailed Report", "\n".join(report_lines), f"ToxAI_Report_{smiles[:10]}.md", "text/markdown", use_container_width=True)
 
     # TAB 1: PREDICT
     with tabs[0]:
@@ -299,7 +304,12 @@ def main():
                         with st.spinner("AI is analyzing molecular features, SHAP drivers, and structural alerts..."):
                             summary_res = screen_summary(smiles)
                             ai_notes = get_ai_explanation(smiles, bt, float(df_res[df_res["Target"] == bt]["Probability"].iloc[0]), df_s, summary_res["alerts"])
-                            st.markdown(f'<div style="background:#f0f7ff; border-left:5px solid #0056b3; padding:15px; border-radius:10px;">{ai_notes}</div>', unsafe_allow_html=True)
+                            st.session_state["ai_notes"] = ai_notes
+                            st.rerun()
+
+                if "ai_notes" in st.session_state and st.session_state["ai_notes"]:
+                    st.markdown(f'<div style="background:#f0f7ff; border-left:5px solid #0056b3; padding:15px; border-radius:10px;">{st.session_state["ai_notes"]}</div>', unsafe_allow_html=True)
+                    st.download_button("⬇️ Save Detailed Results", st.session_state["ai_notes"], f"AI_Review_{smiles[:8]}.md", use_container_width=True)
                 else:
                     st.warning("AI Advisor module (`src/ai_advisor.py`) not found or `google-generativeai` missing.")
             else:
