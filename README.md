@@ -11,9 +11,9 @@
 
 ## ✨ Features
 ### 🌟 Key Modern Features
-- **🧠 Gemini AI Scientist**: Integrates `gemini-1.5-flash` to provide expert biochemical explanations, structural alert rationalization, and actionable drug redesign strategies.
-- **📄 Detailed Scientific Reports**: One-click "Toxicity Audit" downloads that bundle molecular descriptors, multi-target predictions, structural alerts, and AI notes into a structured Markdown file.
-- **🔥 Atom-Level Interpretability**: Dynamic SHAP heatmaps that highlight the specific atoms driving toxicity for any selected assay target.
+- **💊 AI-Powered Redesign**: Interactive structural optimization strategies to mitigate toxicity while maintaining drug-like properties.
+- **🌡️ Multi-Target Interpretability**: Dynamic SHAP heatmaps that highlight the specific atoms driving toxicity for any selected Tox21 assay.
+- **📄 Clinical-Ready Reports**: One-click "Toxicity Audit" downloads that bundle molecular descriptors, risk assessments, and AI scientist insights.
 - **⚖️ Molecular Comparison**: Side-by-side visual and statistical comparison of two SMILES strings across all Tox21 pathways.
 - **💊 Structural Optimization**: Rule-based redesign suggestions to mitigate toxicity while maintaining drug-like properties.
 - **Security & Efficiency**: Automated `.env` configuration and an intelligent launcher that handles RDKit and XGBoost dependencies on both Apple Silicon and Intel.
