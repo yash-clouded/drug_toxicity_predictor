@@ -422,13 +422,42 @@ def main():
     # TAB 5: OPTIMIZATION
     with tabs[4]:
         st.subheader("💊 Structural Redesign Suggestions")
-        opts = suggest_optimizations(smiles)
-        if opts:
-            for o in opts:
-                st.info(f"**{o['original']}** ⮕ **{o['suggestion']}**")
-                st.caption(o['reason'])
-        else:
-            st.success("No specific optimization rules triggered.")
+        col_o1, col_o2 = st.columns([1, 1])
+        
+        with col_o1:
+            st.markdown("### 🛠️ Rule-Based Bioisosteres")
+            opts = suggest_optimizations(smiles)
+            if opts:
+                for o in opts:
+                    with st.expander(f"**{o['original']}** ⮕ **{o['suggestion']}**"):
+                        st.info(o['reason'])
+            else:
+                st.success("No high-priority structural risks identified by rules.")
+                
+        with col_o2:
+            st.markdown("### 🧠 AI Scientist Redesign")
+            if st.button("🚀 Ask AI for Redesign Strategies", key="ai_opt_btn"):
+                res_list = st.session_state.get("results")
+                if res_list:
+                    with st.spinner("AI Scientist is rethinking the scaffold..."):
+                        # Find highest risk target for context
+                        hi_risk = max(res_list, key=lambda x: x["Probability"])
+                        bt = hi_risk["Target"]
+                        prob = hi_risk["Probability"]
+                        
+                        # Get SHAP drivers
+                        df_s = get_global_shap(smiles, bt)
+                        # Get alerts
+                        summ = screen_summary(smiles)
+                        
+                        redesign_notes = get_ai_explanation(smiles, bt, float(prob), df_s, summ["alerts"])
+                        st.session_state["ai_redesign"] = redesign_notes
+                        st.write(redesign_notes)
+                else:
+                    st.warning("Run an analysis first to provide context for AI redesign.")
+            
+            elif "ai_redesign" in st.session_state:
+                st.write(st.session_state["ai_redesign"])
 
     # TAB 6: GNN COMPARISON
     with tabs[5]:
